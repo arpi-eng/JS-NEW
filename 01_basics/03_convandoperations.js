@@ -23,5 +23,24 @@ console.log(BooleanIsLoggedIn)
 
 let someNumber = 22
 let stringNumber = String(someNumber)
+// *****operations*****
+let value = 3
+let NegValue = -value
+// console.log(NegValue)
+
+str1 = "Hello"
+str2 = " Abhi"
+let str3 = str1 + str2
+// console.log(str3)
+
+// console.log("1" + 2)
+// console.log(1 + "2")
+// console.log(1 + 2 + "3")
+
+let gamecounter = 100
+let player = "Abhi"
+let game = "Counter-Strike"
+gamecounter++
+console.log(gamecounter)
 console.log(stringNumber)
 console.log(typeof stringNumber)
