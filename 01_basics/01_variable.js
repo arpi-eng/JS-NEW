@@ -1,7 +1,7 @@
 const accountId = "12345";
 let accountEmail = "abhigyan@gmail.com";
 let accountPassword = "1234567890"; 
-accountCity = "bhopal";   //do not prefer this way of declaring variables
+accountCity = "bhopal";   //do not prefer this way of declaring variables,  
 
 accountEmail = "231@gmail.com";
 accountPassword = "ewpass";
