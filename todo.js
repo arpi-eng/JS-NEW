@@ -7,6 +7,7 @@ const interface = readline.createInterface({
   output: process.stdout
 });
 
+
 const storagePath = path.join(__dirname, 'tasks.json');
 
 async function setupTaskFile() {
