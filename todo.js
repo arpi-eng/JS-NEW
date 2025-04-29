@@ -82,7 +82,7 @@ async function finishTask() {
 
 async function removeTask() {
   const currentTasks = await getTasks();
-  if (currentTasks.length === 0) {
+  if (currentTasks.length === 0) { // we are using length as a bench mark to check the status of the task
     console.log(' No tasks to remove!');
     return;
   }
