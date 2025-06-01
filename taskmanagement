@@ -1,0 +1,159 @@
+// server.js - Task Management API
+require('dotenv').config();
+const express = require('express');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const { body, validationResult } = require('express-validator');
+const logger = require('./logger');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Security middleware
+app.use(helmet());
+app.use(express.json());
+
+// Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
+  message: 'Too many requests, please try again later'
+});
+app.use('/api/', apiLimiter);
+
+// In-memory database simulation
+let tasks = [
+  { id: 'tsk-1', title: 'Refactor auth module', status: 'in-progress', assignee: 'dev-1' },
+  { id: 'tsk-2', title: 'Write API documentation', status: 'todo', assignee: null }
+];
+
+// ------ Utility Functions ------
+const findTask = (id) => tasks.find(t => t.id === id);
+const validateAssignee = (assignee) => assignee && assignee.startsWith('dev-');
+
+// ------ Middleware ------
+const validateTaskInput = [
+  body('title').trim().isLength({ min: 5 }).withMessage('Title must be at least 5 characters'),
+  body('status').isIn(['todo', 'in-progress', 'done']).withMessage('Invalid status'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    next();
+  }
+];
+
+// ------ API Endpoints ------
+/**
+ * @route GET /api/tasks
+ * @description Get all tasks with optional filtering
+ * @query status - Filter tasks by status
+ * @returns {Task[]} List of tasks
+ */
+app.get('/api/tasks', (req, res) => {
+  try {
+    const { status } = req.query;
+    const result = status 
+      ? tasks.filter(task => task.status === status)
+      : [...tasks];
+    
+    logger.info(`Fetched ${result.length} tasks`);
+    res.json(result);
+  } catch (error) {
+    logger.error(`GET /tasks failed: ${error.message}`);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * @route POST /api/tasks
+ * @description Create a new task
+ * @body {string} title - Task title (required)
+ * @body {string} [status=todo] - Initial status
+ * @returns {Task} Created task
+ */
+app.post('/api/tasks', validateTaskInput, (req, res) => {
+  try {
+    const { title, status = 'todo' } = req.body;
+    
+    const newTask = {
+      id: `tsk-${Date.now()}`,
+      title,
+      status,
+      assignee: null,
+      createdAt: new Date().toISOString()
+    };
+    
+    tasks.push(newTask);
+    logger.info(`Created task: ${newTask.id}`);
+    res.status(201).json(newTask);
+  } catch (error) {
+    logger.error(`POST /tasks failed: ${error.message}`);
+    res.status(500).json({ error: 'Task creation failed' });
+  }
+});
+
+/**
+ * @route PATCH /api/tasks/:id/assign
+ * @description Assign a task to a developer
+ * @param {string} id - Task ID
+ * @body {string} assignee - Developer ID (format: dev-xxx)
+ * @returns {Task} Updated task
+ */
+app.patch('/api/tasks/:id/assign', async (req, res) => {
+  try {
+    const taskId = req.params.id;
+    const { assignee } = req.body;
+    
+    if (!validateAssignee(assignee)) {
+      return res.status(400).json({ error: 'Invalid assignee format' });
+    }
+    
+    const task = findTask(taskId);
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    
+    // In a real app, we'd check if developer exists
+    // await DeveloperService.exists(assignee);
+    
+    task.assignee = assignee;
+    task.updatedAt = new Date().toISOString();
+    
+    logger.info(`Assigned task ${taskId} to ${assignee}`);
+    res.json(task);
+  } catch (error) {
+    logger.error(`PATCH /tasks/assign failed: ${error.message}`);
+    res.status(500).json({ error: 'Assignment failed' });
+  }
+});
+
+// ------ Error Handling ------
+app.use((req, res) => {
+  res.status(404).json({ error: 'Endpoint not found' });
+});
+
+app.use((err, req, res, next) => {
+  logger.error(`Unhandled error: ${err.stack}`);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// ------ Startup ------
+app.listen(PORT, () => {
+  logger.info(`Server running on port ${PORT}`);
+  logger.debug(`Environment: ${process.env.NODE_ENV || 'development'}`);
+});
+// logger.js - Production-ready logging
+const winston = require('winston');
+
+module.exports = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console(),
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'logs/combined.log' })
+  ]
+});
